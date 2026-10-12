@@ -1,1 +1,1 @@
-export function Brand() { return <div className="brand"><div className="brand-mark">v</div>verve<span>PLAY & TRADE</span></div>; }
+export function Brand() { return <div className="brand"><div className="brand-mark">K</div>ksh win<span>PLAY & TRADE</span></div>; }
