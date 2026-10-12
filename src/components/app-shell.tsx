@@ -1,0 +1,17 @@
+import {createContext,useContext,useEffect,useState,type ReactNode} from 'react';
+import {Link,useNavigate,useRouter,useLocation} from '@tanstack/react-router';
+import {useQueryClient} from '@tanstack/react-query';
+import {LayoutGrid,ChartNoAxesCombined,History,UserRound,LogOut,Wallet,ShieldCheck} from 'lucide-react';
+import {supabase} from '@/integrations/supabase/client';
+import {Button} from '@/components/ui/button';
+import {Brand} from './brand';
+import {formatCredits} from '@/lib/site';
+const AccountContext=createContext({balance:0,name:'Player',refresh:async()=>{}});
+export const useAccount=()=>useContext(AccountContext);
+export function AppShell({children}:{children:ReactNode}){const [balance,setBalance]=useState(0);const [name,setName]=useState('Player');const navigate=useNavigate();const queryClient=useQueryClient();const location=useLocation();
+ async function refresh(){const {data:{user}}=await supabase.auth.getUser();if(!user)return;const [wallet,profile]=await Promise.all([supabase.from('wallets').select('balance').eq('user_id',user.id).single(),supabase.from('profiles').select('display_name').eq('id',user.id).single()]);if(wallet.data)setBalance(Number(wallet.data.balance));if(profile.data)setName(profile.data.display_name);}
+ useEffect(()=>{void refresh();},[location.pathname]);
+ async function logout(){await queryClient.cancelQueries();queryClient.clear();await supabase.auth.signOut();await navigate({to:'/auth',replace:true});}
+ return <AccountContext.Provider value={{balance,name,refresh}}><div className="app-shell"><aside className="sidebar"><Brand/><nav><Link to="/lobby"><LayoutGrid size={17}/>Game lobby</Link><Link to="/trading"><ChartNoAxesCombined size={17}/>Trading</Link><Link to="/history"><History size={17}/>Activity</Link><Link to="/profile"><UserRound size={17}/>My profile</Link></nav><div className="sidebar-footer"><ShieldCheck size={20} className="text-primary mb-3"/><strong className="text-foreground">A little perspective.</strong><p>Virtual credits only.<br/>No deposits. No withdrawals.</p><p className="mt-4">18+ · Play responsibly</p></div></aside><div className="min-w-0"><header className="app-header"><span className="text-xs text-muted-foreground">Good to see you, <strong className="text-foreground">{name}</strong></span><div className="flex items-center gap-3"><div className="balance"><Wallet size={16}/><strong>{formatCredits(balance)}</strong><span className="hidden sm:inline text-muted-foreground">credits</span></div><Button variant="ghost" size="icon" onClick={logout} aria-label="Sign out" title="Sign out"><LogOut/></Button></div></header><main className="page-content">{children}</main></div></div></AccountContext.Provider>;
+}
+export function SessionSync(){const router=useRouter();const navigate=useNavigate();const queryClient=useQueryClient();useEffect(()=>{async function check(){const {data:{user}}=await supabase.auth.getUser();if(user&&(router.state.location.pathname==='/'||router.state.location.pathname==='/auth'))void navigate({to:'/lobby',replace:true});}void check();const {data}=supabase.auth.onAuthStateChange(event=>{if(!['SIGNED_IN','SIGNED_OUT','USER_UPDATED'].includes(event))return;void router.invalidate();if(event!=='SIGNED_OUT'){void queryClient.invalidateQueries();if(event==='SIGNED_IN')void navigate({to:'/lobby',replace:true});}});return ()=>data.subscription.unsubscribe();},[router,navigate,queryClient]);return null;}
