@@ -1,0 +1,2 @@
+export function pageHead(title: string, description: string) { return { meta: [{ title: `${title} · Verve` }, { name: 'description', content: description }, { property: 'og:title', content: `${title} · Verve` }, { property: 'og:description', content: description }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary_large_image' }] }; }
+export const formatCredits = (value: number) => new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(value);

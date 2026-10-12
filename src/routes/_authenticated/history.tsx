@@ -1,0 +1,7 @@
+import {createFileRoute} from '@tanstack/react-router';
+import {useEffect,useState} from 'react';
+import {supabase} from '@/integrations/supabase/client';
+import type {Database} from '@/integrations/supabase/types';
+import {pageHead,formatCredits} from '@/lib/site';
+export const Route=createFileRoute('/_authenticated/history')({head:()=>pageHead('Activity','Your virtual play and trading history on Verve.'),component:History});
+function History(){const [rows,setRows]=useState<Database['public']['Tables']['play_history']['Row'][]>([]);const [loading,setLoading]=useState(true);const [error,setError]=useState('');useEffect(()=>{void supabase.from('play_history').select('*').order('created_at',{ascending:false}).limit(100).then(({data,error})=>{if(error)setError(error.message);else setRows(data||[]);setLoading(false);});},[]);return <><div className="page-heading"><div><h1>Your activity.</h1><p>A record of every move.</p></div></div><div className="table-wrap"><table><thead><tr><th>GAME / MARKET</th><th>RESULT</th><th>STAKE</th><th>RETURN</th><th>TIME</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td className="font-semibold">{r.game}</td><td>{r.result}</td><td>{formatCredits(Number(r.stake))}</td><td className={Number(r.payout)>0?'text-primary':'text-muted-foreground'}>{formatCredits(Number(r.payout))}</td><td>{new Date(r.created_at).toLocaleString()}</td></tr>)}</tbody></table>{!rows.length&&<p className="empty">{error|| (loading?'Loading your activity…':'Your first play is still ahead of you.')}</p>}</div></>;}
