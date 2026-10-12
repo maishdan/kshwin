@@ -1,0 +1,2 @@
+import { z } from 'zod';
+export const playSchema = z.object({ game: z.enum(['Aviator','JetX','Spaceman','Rocket X','Lucky Jet','Roulette','Dice','Coin Flip','Slots','BTC','ETH','SOL','AAPL','EURUSD']), stake: z.number().min(1).max(1000).refine(v => Math.abs(v * 100 - Math.round(v * 100)) < 0.00001, 'Use at most two decimals'), choice: z.string().max(60).default(''), action: z.enum(['play','status','cashout','buy','sell']).default('play') });
