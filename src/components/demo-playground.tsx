@@ -3,7 +3,7 @@ import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'rec
 import {
   Plane, Dices, TrendingUp, Wallet, ArrowRight, Sparkles, RefreshCw,
   ArrowUpRight, ShieldCheck, Flame, CircleDot, Coins, Cherry, ShieldAlert,
-  Play, StopCircle, Award, CheckCircle2, AlertCircle, Timer
+  Play, StopCircle, Award, CheckCircle2, AlertCircle, Timer, Minus, Plus, Users, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCredits } from '@/lib/site';
@@ -14,6 +14,15 @@ interface DemoPlaygroundProps {
 }
 
 type FlightState = 'WAITING' | 'FLYING' | 'CRASHED';
+
+interface SimulatedPlayer {
+  id: string;
+  name: string;
+  avatar: string;
+  stake: number;
+  cashedMult?: number;
+  winAmt?: number;
+}
 
 export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   // Demo Wallet State
@@ -35,25 +44,51 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   // Main Tab Navigation
   const [activeTab, setActiveTab] = useState<'aviator' | 'casino' | 'trading'>('aviator');
 
-  // --- AUTOMATIC CONTINUOUS AVIATOR GAME ENGINE ---
-  const [stake, setStake] = useState<string>('100');
-  const [autoCashout, setAutoCashout] = useState<string>('');
+  // --- AVIATOR GAME ENGINE STATE ---
   const [flightState, setFlightState] = useState<FlightState>('WAITING');
   const [countdown, setCountdown] = useState<number>(5);
   const [multiplier, setMultiplier] = useState<number>(1.00);
-  const [hasBet, setHasBet] = useState<boolean>(false);
-  const [cashedOut, setCashedOut] = useState<boolean>(false);
-  const [lastWin, setLastWin] = useState<number | null>(null);
-  const [multiplierHistory, setMultiplierHistory] = useState<number[]>([2.18, 1.45, 5.40, 1.05, 12.30, 1.82, 3.10]);
+  const [multiplierHistory, setMultiplierHistory] = useState<number[]>([1.14, 1.03, 1.97, 1.31, 1.24, 1.02, 1.41, 3.19, 1.87, 2.25, 1.85, 1.66, 3.14, 2.34, 1.65, 1.19]);
 
-  const crashPoint = useRef<number>(2.00);
+  // Dual Bet Panel State (Bet Panel 1 & Bet Panel 2)
+  const [stake1, setStake1] = useState<number>(100);
+  const [stake2, setStake2] = useState<number>(200);
+  const [autoCashout1, setAutoCashout1] = useState<string>('');
+  const [autoCashout2, setAutoCashout2] = useState<string>('');
+
+  const [hasBet1, setHasBet1] = useState<boolean>(false);
+  const [cashedOut1, setCashedOut1] = useState<boolean>(false);
+  const [lastWin1, setLastWin1] = useState<number | null>(null);
+
+  const [hasBet2, setHasBet2] = useState<boolean>(false);
+  const [cashedOut2, setCashedOut2] = useState<boolean>(false);
+  const [lastWin2, setLastWin2] = useState<number | null>(null);
+
+  const [betsTab, setBetsTab] = useState<'all' | 'previous' | 'top'>('all');
+
+  // Simulated Online Players Table Feed
+  const [players, setPlayers] = useState<SimulatedPlayer[]>([]);
+
+  const crashPoint = useRef<number>(2.01);
   const flightStartTime = useRef<number>(0);
   const flightTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Plane animation coordinates
+  // Plane animation trajectory coordinates
   const [planeX, setPlaneX] = useState<number>(5);
   const [planeY, setPlaneY] = useState<number>(85);
+
+  // Initialize simulated player list
+  useEffect(() => {
+    const names = ['Aleksey', 'Kipchoge', 'NairobiFlyer', 'TraderKen', 'VIP_Win', 'AviatorPro', 'Wanjiku', 'SammyK', 'Bettor99', 'GamerX'];
+    const initialPlayers: SimulatedPlayer[] = names.map((name, i) => ({
+      id: String(i),
+      name,
+      avatar: `https://i.pravatar.cc/100?img=${i + 10}`,
+      stake: Math.floor(Math.random() * 500) + 50,
+    }));
+    setPlayers(initialPlayers);
+  }, []);
 
   // Continuous Auto-Loop Effect for Aviator
   useEffect(() => {
@@ -63,7 +98,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
       return;
     }
 
-    // Start waiting phase loop
     startWaitingPhase();
 
     return () => {
@@ -81,8 +115,18 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
     setMultiplier(1.00);
     setPlaneX(5);
     setPlaneY(85);
-    setCashedOut(false);
-    setLastWin(null);
+    setCashedOut1(false);
+    setCashedOut2(false);
+    setLastWin1(null);
+    setLastWin2(null);
+
+    // Reset player win statuses
+    setPlayers(prev => prev.map(p => ({
+      ...p,
+      stake: Math.floor(Math.random() * 500) + 50,
+      cashedMult: undefined,
+      winAmt: undefined,
+    })));
 
     let cd = 5;
     countdownTimer.current = setInterval(() => {
@@ -98,9 +142,8 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   const startFlightPhase = () => {
     setFlightState('FLYING');
 
-    // Generate crash point (Weighted algorithm)
     const rand = Math.random();
-    const generatedCrash = rand < 0.15 ? 1.05 + Math.random() * 0.2 : rand < 0.7 ? 1.3 + Math.random() * 2.5 : 3.5 + Math.random() * 12;
+    const generatedCrash = rand < 0.2 ? 1.05 + Math.random() * 0.2 : rand < 0.75 ? 1.25 + Math.random() * 2.2 : 3.5 + Math.random() * 8;
     crashPoint.current = Number(generatedCrash.toFixed(2));
     flightStartTime.current = Date.now();
 
@@ -108,15 +151,30 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
       const elapsed = (Date.now() - flightStartTime.current) / 1000;
       const currentMult = Number((Math.exp(elapsed * 0.14)).toFixed(2));
 
-      // Calculate plane position along curved trajectory
-      const progress = Math.min(100, (elapsed / 8) * 100);
+      // Trajectory curve calculation
+      const progress = Math.min(100, (elapsed / 7) * 100);
       setPlaneX(Math.min(85, 5 + progress * 0.8));
       setPlaneY(Math.max(15, 85 - Math.pow(progress / 100, 0.7) * 70));
 
-      // Check auto cashout if player has an active bet
-      const autoNum = Number(autoCashout);
-      if (hasBet && !cashedOut && autoNum > 1 && currentMult >= autoNum) {
-        handleCashOut(currentMult);
+      // Simulate random player cashouts
+      setPlayers(prev => prev.map(p => {
+        if (!p.cashedMult && Math.random() < 0.08 && currentMult > 1.2) {
+          const mult = currentMult;
+          return { ...p, cashedMult: mult, winAmt: Math.round(p.stake * mult) };
+        }
+        return p;
+      }));
+
+      // Check auto cashout 1
+      const autoNum1 = Number(autoCashout1);
+      if (hasBet1 && !cashedOut1 && autoNum1 > 1 && currentMult >= autoNum1) {
+        handleCashOut(1, currentMult);
+      }
+
+      // Check auto cashout 2
+      const autoNum2 = Number(autoCashout2);
+      if (hasBet2 && !cashedOut2 && autoNum2 > 1 && currentMult >= autoNum2) {
+        handleCashOut(2, currentMult);
       }
 
       if (currentMult >= crashPoint.current) {
@@ -131,34 +189,45 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   const handleCrash = (finalCrash: number) => {
     setFlightState('CRASHED');
     setMultiplier(finalCrash);
-    setHasBet(false);
-    setMultiplierHistory(prev => [finalCrash, ...prev.slice(0, 8)]);
+    setHasBet1(false);
+    setHasBet2(false);
+    setMultiplierHistory(prev => [finalCrash, ...prev.slice(0, 15)]);
 
-    // Wait 3.5 seconds after crash, then restart next flight automatically!
     setTimeout(() => {
       startWaitingPhase();
     }, 3500);
   };
 
-  const placeDemoBet = () => {
-    const stakeNum = Number(stake);
-    if (!stakeNum || stakeNum < 1 || stakeNum > demoBalance || hasBet) return;
+  const placeDemoBet = (panel: 1 | 2) => {
+    const amt = panel === 1 ? stake1 : stake2;
+    if (!amt || amt < 1 || amt > demoBalance) return;
 
-    setDemoBalance(prev => prev - stakeNum);
-    setHasBet(true);
-    setCashedOut(false);
+    setDemoBalance(prev => prev - amt);
+    if (panel === 1) { setHasBet1(true); setCashedOut1(false); }
+    else { setHasBet2(true); setCashedOut2(false); }
   };
 
-  const handleCashOut = (forcedMult?: number) => {
-    if (!hasBet || cashedOut || flightState !== 'FLYING') return;
+  const handleCashOut = (panel: 1 | 2, forcedMult?: number) => {
+    const isPanel1 = panel === 1;
+    const activeBet = isPanel1 ? hasBet1 : hasBet2;
+    const isCashed = isPanel1 ? cashedOut1 : cashedOut2;
+
+    if (!activeBet || isCashed || flightState !== 'FLYING') return;
 
     const finalMult = forcedMult || multiplier;
-    const stakeNum = Number(stake);
-    const winAmount = Math.round(stakeNum * finalMult);
+    const amt = isPanel1 ? stake1 : stake2;
+    const winAmount = Math.round(amt * finalMult);
 
-    setCashedOut(true);
-    setHasBet(false);
-    setLastWin(winAmount);
+    if (isPanel1) {
+      setCashedOut1(true);
+      setHasBet1(false);
+      setLastWin1(winAmount);
+    } else {
+      setCashedOut2(true);
+      setHasBet2(false);
+      setLastWin2(winAmount);
+    }
+
     setDemoBalance(prev => prev + winAmount);
   };
 
@@ -169,15 +238,12 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   const [casinoResult, setCasinoResult] = useState<string | null>(null);
   const [casinoPayout, setCasinoPayout] = useState<number | null>(null);
 
-  // Slots Reels
   const slotSymbols = ['🍒', '💎', '🔔', '7️⃣', '🎰', '🍋'];
   const [reels, setReels] = useState<string[]>(['🍒', '💎', '7️⃣']);
-
-  // Dice Slider
   const [diceTarget, setDiceTarget] = useState<number>(50);
 
   const playCasinoGame = () => {
-    const stakeNum = Number(stake);
+    const stakeNum = stake1;
     if (!stakeNum || stakeNum < 1 || stakeNum > demoBalance || casinoSpinning) return;
 
     setDemoBalance(prev => prev - stakeNum);
@@ -209,7 +275,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
           if (winMult > 0) {
             const winAmt = Math.round(stakeNum * winMult);
             setCasinoPayout(winAmt);
-            setCasinoResult(`JACKPOT! 3x Matching symbols! Won ${winMult}x`);
+            setCasinoResult(`JACKPOT! Won ${winMult}x`);
             setDemoBalance(prev => prev + winAmt);
           } else {
             setCasinoResult('No match. Try another spin!');
@@ -272,7 +338,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   const [openTrade, setOpenTrade] = useState<{ symbol: string; type: 'BUY' | 'SELL'; stake: number; entry: number } | null>(null);
   const [pnl, setPnl] = useState<number>(0);
 
-  // Initialize trade chart data
   useEffect(() => {
     const base = marketPrices[tradeSymbol];
     setCurrentPrice(base);
@@ -283,7 +348,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
     setTradeChartData(initial);
   }, [tradeSymbol]);
 
-  // Live chart ticks
   useEffect(() => {
     const timer = setInterval(() => {
       setTradeChartData(prev => {
@@ -306,7 +370,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   }, [openTrade, tradeSymbol]);
 
   const executeTrade = (type: 'BUY' | 'SELL') => {
-    const stakeNum = Number(stake);
+    const stakeNum = stake1;
     if (!stakeNum || stakeNum < 1 || stakeNum > demoBalance || openTrade) return;
 
     setDemoBalance(prev => prev - stakeNum);
@@ -322,268 +386,345 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
     setPnl(0);
   };
 
-  const resetDemoBalance = () => {
-    setDemoBalance(10000);
-  };
-
   return (
-    <div className="demo-playground w-full space-y-6">
-      {/* 1. TOP REAL CASH DEPOSIT PROMO BANNER */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-4 md:p-5 shadow-xl text-emerald-100 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
-            <Sparkles className="w-6 h-6 animate-pulse" />
+    <div className="aviator-spribe-container w-full bg-slate-950 text-slate-100 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+      {/* 1. OFFICIAL AVIATOR RED HEADER BAR */}
+      <header className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 font-black italic text-xl text-red-500 tracking-wider">
+            <Plane className="w-5 h-5 text-red-500 transform -rotate-12 fill-current" /> Aviator
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-widest text-emerald-400">DEMO PLAYGROUND</span>
-              <span className="text-[10px] bg-emerald-800/80 text-emerald-200 border border-emerald-600 px-2 py-0.5 rounded-full font-mono font-bold">Risk-Free</span>
-            </div>
-            <p className="text-xs text-emerald-200/90 font-medium mt-0.5">
-              Testing KSH WIN with $10,000 virtual credits. Ready to win real cash?
-            </p>
-          </div>
+          <span className="hidden sm:inline text-xs text-slate-400 border-l border-slate-700 pl-3">
+            SPRIBE OFFICIAL UI
+          </span>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Button
-            onClick={() => onGoToAuth('login')}
-            variant="outline"
-            className="border-emerald-500/50 text-emerald-200 hover:bg-emerald-900/60 text-xs font-semibold whitespace-nowrap"
-          >
-            Sign In
-          </Button>
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 font-mono text-xs">
+            <span className="text-slate-400">Balance:</span>
+            <strong className="text-emerald-400 font-bold">{formatCredits(demoBalance)} KSh</strong>
+          </div>
+
           <Button
             onClick={() => onGoToAuth('signup')}
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-4 py-2 shadow-lg shadow-emerald-950/80 whitespace-nowrap"
+            className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-4 py-2 shadow-lg"
           >
-            Deposit Real Cash <ArrowRight className="w-4 h-4 ml-1.5" />
+            SIGN IN / DEPOSIT REAL CASH
           </Button>
         </div>
+      </header>
+
+      {/* 2. GAME CATEGORY TAB SWITCHER */}
+      <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-2 flex gap-2">
+        <button
+          onClick={() => setActiveTab('aviator')}
+          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === 'aviator' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Plane className="w-3.5 h-3.5" /> Aviator Crash
+        </button>
+        <button
+          onClick={() => setActiveTab('casino')}
+          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === 'casino' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Dices className="w-3.5 h-3.5" /> Casino Classics
+        </button>
+        <button
+          onClick={() => setActiveTab('trading')}
+          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === 'trading' ? 'bg-red-600 text-white' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <TrendingUp className="w-3.5 h-3.5" /> Trading Markets
+        </button>
       </div>
 
-      {/* 2. DEMO WALLET & TAB NAVIGATION BAR */}
-      <div className="bg-card border rounded-2xl p-3.5 md:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-2.5 bg-secondary/80 px-3.5 py-2 rounded-xl border font-mono">
-            <Wallet className="w-4 h-4 text-emerald-500" />
-            <span className="text-xs font-bold text-muted-foreground">Demo Balance:</span>
-            <strong className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-              KSh {formatCredits(demoBalance)}
-            </strong>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={resetDemoBalance}
-            title="Reset Demo Balance to KSh 10,000"
-            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-9 whitespace-nowrap"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Reset $10k
-          </Button>
-        </div>
-
-        {/* Main Tabs - Spacious, distinctly separated buttons */}
-        <div className="flex flex-wrap gap-2 bg-muted p-1.5 rounded-xl">
-          <button
-            onClick={() => setActiveTab('aviator')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'aviator' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Plane className="w-4 h-4" /> Aviator
-          </button>
-          <button
-            onClick={() => setActiveTab('casino')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'casino' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Dices className="w-4 h-4" /> Casino
-          </button>
-          <button
-            onClick={() => setActiveTab('trading')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-              activeTab === 'trading' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" /> Trading
-          </button>
-        </div>
-      </div>
-
-      {/* --- TAB 1: AUTOMATIC CONTINUOUS AVIATOR GAME --- */}
+      {/* --- TAB 1: SPRIBE AVIATOR OFFICIAL INTERFACE --- */}
       {activeTab === 'aviator' && (
-        <div className="space-y-4">
-          {/* History Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase shrink-0">Recent Multipliers:</span>
+        <div className="p-3 md:p-4 space-y-3">
+          {/* Top Multiplier History Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
             {multiplierHistory.map((mult, idx) => (
               <span
                 key={idx}
-                className={`px-2.5 py-1 rounded-md font-mono text-xs font-bold shrink-0 ${
-                  mult >= 10 ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40' :
-                  mult >= 2 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' :
-                  'bg-slate-800 text-slate-300'
+                className={`px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold shrink-0 ${
+                  mult >= 10 ? 'bg-purple-900/80 text-purple-300 border border-purple-500/50' :
+                  mult >= 2 ? 'bg-indigo-900/80 text-indigo-300 border border-indigo-500/50' :
+                  'bg-slate-800 text-cyan-300 border border-slate-700'
                 }`}
               >
                 {mult.toFixed(2)}x
               </span>
             ))}
+            <span className="text-slate-500 text-xs px-2 font-bold">...</span>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-5">
-            {/* Real Flight Stage */}
-            <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between min-h-[340px] md:min-h-[400px] shadow-2xl">
-              {/* Flight Stage Header with clear spacing */}
-              <div className="flex flex-wrap justify-between items-center z-10 gap-2 border-b border-slate-900/80 pb-2">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-950/80 px-2.5 py-1 rounded-md border border-emerald-800/60">
-                  <Flame className="w-3.5 h-3.5 text-emerald-400" /> AUTO AVIATOR FLIGHT
-                </span>
-                <span className="text-xs font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800">
-                  {flightState === 'WAITING' ? `NEXT ROUND IN ${countdown}s` : flightState === 'FLYING' ? 'SOARING IN AIR' : 'FLEW AWAY'}
-                </span>
-              </div>
+          {/* Main Grid: Left Bets Table + Center Flight Arena */}
+          <div className="grid lg:grid-cols-12 gap-3">
+            {/* Left Bets & Players Panel (4 columns) */}
+            <div className="lg:col-span-4 bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between min-h-[420px]">
+              <div>
+                <div className="flex gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-bold text-slate-400">
+                  <button
+                    onClick={() => setBetsTab('all')}
+                    className={`flex-1 py-1 rounded ${betsTab === 'all' ? 'bg-slate-800 text-white' : ''}`}
+                  >
+                    All Bets
+                  </button>
+                  <button
+                    onClick={() => setBetsTab('previous')}
+                    className={`flex-1 py-1 rounded ${betsTab === 'previous' ? 'bg-slate-800 text-white' : ''}`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setBetsTab('top')}
+                    className={`flex-1 py-1 rounded ${betsTab === 'top' ? 'bg-slate-800 text-white' : ''}`}
+                  >
+                    Top
+                  </button>
+                </div>
 
-              {/* Curved Flight Path SVG */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30" viewBox="0 0 500 300" preserveAspectRatio="none">
-                <path d="M 10 280 Q 250 270 480 30" stroke="#10b981" strokeWidth="4" fill="none" strokeDasharray="6 6" />
-              </svg>
+                <div className="flex justify-between items-center my-3 text-[11px] text-slate-400 px-1 font-mono">
+                  <span>287/335 Bets</span>
+                  <span>Total win KSh</span>
+                </div>
 
-              {/* Real Plane Moving along trajectory */}
-              <div
-                className="absolute transition-all duration-100 z-10 pointer-events-none"
-                style={{
-                  left: `${planeX}%`,
-                  top: `${planeY}%`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              >
-                <div className="relative group">
-                  <img
-                    src={world}
-                    alt="Real Aviator Aircraft"
-                    className={`w-16 h-16 md:w-20 md:h-20 object-cover rounded-full border-2 border-emerald-400 shadow-2xl ${
-                      flightState === 'FLYING' ? 'animate-pulse scale-110 shadow-emerald-500/50' : ''
-                    }`}
-                  />
-                  {flightState === 'FLYING' && (
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded shadow whitespace-nowrap">
-                      SOARING
+                {/* Table Feed */}
+                <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
+                  {players.map(p => (
+                    <div key={p.id} className="flex items-center justify-between bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 text-xs">
+                      <div className="flex items-center gap-2">
+                        <img src={p.avatar} alt={p.name} className="w-5 h-5 rounded-full object-cover" />
+                        <span className="font-semibold text-slate-300 text-[11px] truncate max-w-[80px]">{p.name}</span>
+                      </div>
+                      <span className="font-mono text-slate-400 text-[11px]">{p.stake}</span>
+                      {p.cashedMult ? (
+                        <span className="font-mono text-emerald-400 font-bold text-[11px] bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/60">
+                          {p.cashedMult.toFixed(2)}x
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 font-mono">in air</span>
+                      )}
+                      <span className="font-mono text-slate-200 font-bold text-[11px]">{p.winAmt ? formatCredits(p.winAmt) : '-'}</span>
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
-              {/* Multiplier Display Center */}
-              <div className="my-auto text-center z-10">
-                {flightState === 'WAITING' ? (
-                  <div className="space-y-2">
-                    <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold px-4 py-2 rounded-xl text-lg font-mono">
-                      <Timer className="w-5 h-5 animate-spin" /> NEXT FLIGHT IN {countdown}s
-                    </div>
-                    <p className="text-xs text-slate-400">Place your bet for the upcoming flight!</p>
-                  </div>
-                ) : (
-                  <div>
-                    <div className={`text-6xl md:text-7xl font-black font-mono tracking-tight ${
-                      flightState === 'CRASHED' ? 'text-red-500' : cashedOut ? 'text-emerald-400' : 'text-slate-100'
-                    }`}>
-                      {multiplier.toFixed(2)}<span className="text-3xl md:text-4xl font-bold">x</span>
-                    </div>
-                    <p className="text-xs md:text-sm font-semibold text-slate-400 mt-2">
-                      {flightState === 'FLYING' ? '🚀 Flight in air! Tap Cash Out before plane flees.' : flightState === 'CRASHED' ? `💥 Plane Flew Away at ${multiplier.toFixed(2)}x! Next flight starting...` : `🎉 Cashed out at ${multiplier.toFixed(2)}x! Won KSh ${formatCredits(lastWin || 0)}`}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Flight Stage Footer */}
-              <div className="flex justify-between items-center text-xs text-slate-500 z-10 border-t border-slate-900 pt-3">
-                <span>CONTINUOUS AUTOMATIC LOOPS</span>
-                <span>PROBABLY FAIR ALGORITHM</span>
+              <div className="pt-3 border-t border-slate-800/80 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+                <span className="flex items-center gap-1"><Check className="w-3 h-3 text-emerald-400" /> Provably Fair Game</span>
+                <span>Powered by SPRIBE</span>
               </div>
             </div>
 
-            {/* Betting Controls Panel */}
-            <div className="bg-card border rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-              <div className="space-y-4">
-                <div className="border-b pb-3">
-                  <h3 className="text-sm font-bold flex items-center gap-2">
-                    <Plane className="w-4 h-4 text-emerald-500" /> Place Demo Bet
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Bet on upcoming flight. Cash out anytime!</p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                    Stake Amount (KSh Demo)
-                  </label>
-                  <input
-                    type="number"
-                    value={stake}
-                    disabled={hasBet}
-                    onChange={e => setStake(e.target.value)}
-                    min={10}
-                    max={demoBalance}
-                    className="w-full bg-background border rounded-xl px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
-                  />
-                  {/* Distinct Grid with spacing so buttons never overlap */}
-                  <div className="grid grid-cols-4 gap-2 mt-2">
-                    {[50, 100, 250, 500].map(amt => (
-                      <button
-                        key={amt}
-                        type="button"
-                        disabled={hasBet}
-                        onClick={() => setStake(String(amt))}
-                        className="py-1.5 text-xs font-bold bg-muted hover:bg-secondary rounded-lg transition-colors border"
-                      >
-                        +{amt}
-                      </button>
-                    ))}
+            {/* Center Flight Arena (8 columns) */}
+            <div className="lg:col-span-8 space-y-3 flex flex-col">
+              {/* Flight Stage Arena */}
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-5 relative overflow-hidden flex flex-col justify-between min-h-[300px] md:min-h-[340px] shadow-2xl">
+                {/* Top FUN MODE badge */}
+                <div className="flex justify-between items-center z-10">
+                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                    FUN MODE · DEMO CREDITS
+                  </span>
+                  <div className="flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded text-xs text-slate-400 font-mono">
+                    <Users className="w-3.5 h-3.5 text-emerald-400" /> 172
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                    Auto Cash Out Multiplier (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 2.00"
-                    step="0.1"
-                    value={autoCashout}
-                    disabled={hasBet}
-                    onChange={e => setAutoCashout(e.target.value)}
-                    className="w-full bg-background border rounded-xl px-3.5 py-2 text-xs font-semibold outline-none focus:border-emerald-500"
+                {/* Sunburst Background & Flight Path SVG */}
+                <div className="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-900/40 via-slate-950 to-slate-950" />
+                <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 500 300" preserveAspectRatio="none">
+                  <path d="M 10 280 Q 250 270 480 30" stroke="#ef4444" strokeWidth="4" fill="none" />
+                </svg>
+
+                {/* Real Moving Airplane Graphic */}
+                <div
+                  className="absolute transition-all duration-100 z-10 pointer-events-none"
+                  style={{
+                    left: `${planeX}%`,
+                    top: `${planeY}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <img
+                    src={world}
+                    alt="Official Aviator Red Aircraft"
+                    className={`w-16 h-16 md:w-20 md:h-20 object-cover rounded-full border-2 border-red-500 shadow-2xl ${
+                      flightState === 'FLYING' ? 'animate-pulse scale-110 shadow-red-500/80' : ''
+                    }`}
                   />
+                </div>
+
+                {/* Center Display: Flew Away / Waiting / Multiplier */}
+                <div className="my-auto text-center z-10">
+                  {flightState === 'WAITING' ? (
+                    <div className="space-y-2">
+                      <span className="text-sm font-bold text-amber-400 uppercase tracking-widest block font-mono">
+                        WAITING FOR NEXT ROUND
+                      </span>
+                      <div className="text-3xl font-black font-mono text-slate-100">
+                        00:0{countdown}
+                      </div>
+                    </div>
+                  ) : flightState === 'CRASHED' ? (
+                    <div className="space-y-1">
+                      <span className="text-xl md:text-2xl font-black text-slate-200 uppercase tracking-widest block">
+                        FLEW AWAY!
+                      </span>
+                      <div className="text-6xl md:text-7xl font-black font-mono text-red-600 tracking-tight">
+                        {multiplier.toFixed(2)}x
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-6xl md:text-7xl font-black font-mono text-slate-100 tracking-tight">
+                        {multiplier.toFixed(2)}<span className="text-4xl">x</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] text-slate-500 z-10 border-t border-slate-900 pt-2 font-mono">
+                  <span>PROBABLY FAIR ● SPRIBE ENGINE</span>
+                  <span>100% SECURE</span>
                 </div>
               </div>
 
-              <div className="pt-5 border-t mt-4">
-                {flightState === 'WAITING' ? (
-                  <Button
-                    onClick={placeDemoBet}
-                    disabled={hasBet || !Number(stake) || Number(stake) < 1 || Number(stake) > demoBalance}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 text-sm shadow-md"
-                  >
-                    {hasBet ? 'Bet Placed! Waiting for Launch...' : `Bet KSh ${stake} for Next Flight`}
-                  </Button>
-                ) : flightState === 'FLYING' && hasBet && !cashedOut ? (
-                  <Button
-                    onClick={() => handleCashOut()}
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black h-12 text-sm shadow-xl animate-pulse"
-                  >
-                    CASH OUT KSh {formatCredits(Math.round(Number(stake) * multiplier))} ({multiplier.toFixed(2)}x)
-                  </Button>
-                ) : (
-                  <Button
-                    disabled
-                    className="w-full bg-muted text-muted-foreground font-bold h-12 text-sm"
-                  >
-                    {cashedOut ? `Cashed Out KSh ${formatCredits(lastWin || 0)}!` : flightState === 'CRASHED' ? 'Flew Away! Starting next round...' : 'Flight in Progress'}
-                  </Button>
-                )}
+              {/* DUAL BET CONTROLS (Two Side-by-Side Bet Panels!) */}
+              <div className="grid md:grid-cols-2 gap-3">
+                {/* BET PANEL 1 */}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <span className="text-xs font-bold text-slate-300">Bet Panel 1</span>
+                    <div className="flex bg-slate-950 rounded p-0.5 text-[10px] font-bold">
+                      <button className="px-2 py-0.5 rounded bg-slate-800 text-white">Bet</button>
+                      <button className="px-2 py-0.5 text-slate-500">Auto</button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 items-center">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg p-1.5">
+                        <button onClick={() => setStake1(prev => Math.max(10, prev - 50))} className="p-1 hover:bg-slate-800 rounded">
+                          <Minus className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <span className="font-mono text-xs font-bold text-white">{stake1}.00</span>
+                        <button onClick={() => setStake1(prev => prev + 50)} className="p-1 hover:bg-slate-800 rounded">
+                          <Plus className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 text-[10px] font-bold">
+                        {[10, 20, 50, 100].map(val => (
+                          <button
+                            key={val}
+                            onClick={() => setStake1(val)}
+                            className="bg-slate-950 hover:bg-slate-800 text-slate-300 py-1 rounded border border-slate-800"
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Big Action Button 1 */}
+                    {flightState === 'WAITING' ? (
+                      <Button
+                        onClick={() => placeDemoBet(1)}
+                        disabled={hasBet1 || stake1 > demoBalance}
+                        className="w-full h-full min-h-[64px] bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-lg flex flex-col items-center justify-center leading-tight"
+                      >
+                        <span>{hasBet1 ? 'BET PLACED' : 'BET'}</span>
+                        <span className="text-xs font-mono font-normal opacity-90">{stake1}.00 KSh</span>
+                      </Button>
+                    ) : flightState === 'FLYING' && hasBet1 && !cashedOut1 ? (
+                      <Button
+                        onClick={() => handleCashOut(1)}
+                        className="w-full h-full min-h-[64px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs md:text-sm rounded-xl shadow-xl animate-pulse flex flex-col items-center justify-center leading-tight"
+                      >
+                        <span>CASH OUT</span>
+                        <span className="font-mono font-bold text-xs">{formatCredits(Math.round(stake1 * multiplier))} KSh</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        disabled
+                        className="w-full h-full min-h-[64px] bg-slate-800 text-slate-500 font-bold text-xs rounded-xl flex flex-col items-center justify-center"
+                      >
+                        <span>{cashedOut1 ? `CASHED OUT!` : 'WAITING'}</span>
+                        <span className="text-[10px] font-mono">{lastWin1 ? `+${formatCredits(lastWin1)} KSh` : ''}</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* BET PANEL 2 */}
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-3">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                    <span className="text-xs font-bold text-slate-300">Bet Panel 2</span>
+                    <div className="flex bg-slate-950 rounded p-0.5 text-[10px] font-bold">
+                      <button className="px-2 py-0.5 rounded bg-slate-800 text-white">Bet</button>
+                      <button className="px-2 py-0.5 text-slate-500">Auto</button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 items-center">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg p-1.5">
+                        <button onClick={() => setStake2(prev => Math.max(10, prev - 50))} className="p-1 hover:bg-slate-800 rounded">
+                          <Minus className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <span className="font-mono text-xs font-bold text-white">{stake2}.00</span>
+                        <button onClick={() => setStake2(prev => prev + 50)} className="p-1 hover:bg-slate-800 rounded">
+                          <Plus className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 text-[10px] font-bold">
+                        {[10, 20, 50, 100].map(val => (
+                          <button
+                            key={val}
+                            onClick={() => setStake2(val)}
+                            className="bg-slate-950 hover:bg-slate-800 text-slate-300 py-1 rounded border border-slate-800"
+                          >
+                            {val}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Big Action Button 2 */}
+                    {flightState === 'WAITING' ? (
+                      <Button
+                        onClick={() => placeDemoBet(2)}
+                        disabled={hasBet2 || stake2 > demoBalance}
+                        className="w-full h-full min-h-[64px] bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-lg flex flex-col items-center justify-center leading-tight"
+                      >
+                        <span>{hasBet2 ? 'BET PLACED' : 'BET'}</span>
+                        <span className="text-xs font-mono font-normal opacity-90">{stake2}.00 KSh</span>
+                      </Button>
+                    ) : flightState === 'FLYING' && hasBet2 && !cashedOut2 ? (
+                      <Button
+                        onClick={() => handleCashOut(2)}
+                        className="w-full h-full min-h-[64px] bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs md:text-sm rounded-xl shadow-xl animate-pulse flex flex-col items-center justify-center leading-tight"
+                      >
+                        <span>CASH OUT</span>
+                        <span className="font-mono font-bold text-xs">{formatCredits(Math.round(stake2 * multiplier))} KSh</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        disabled
+                        className="w-full h-full min-h-[64px] bg-slate-800 text-slate-500 font-bold text-xs rounded-xl flex flex-col items-center justify-center"
+                      >
+                        <span>{cashedOut2 ? `CASHED OUT!` : 'WAITING'}</span>
+                        <span className="text-[10px] font-mono">{lastWin2 ? `+${formatCredits(lastWin2)} KSh` : ''}</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -592,8 +733,8 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
       {/* --- TAB 2: CASINO CLASSICS --- */}
       {activeTab === 'casino' && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2 border-b pb-3">
+        <div className="p-4 space-y-4">
+          <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
             {[
               { id: 'roulette', label: 'Roulette Wheel', icon: CircleDot },
               { id: 'slots', label: 'Slot Machine', icon: Cherry },
@@ -612,7 +753,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                     setCasinoPayout(null);
                   }}
                   className={`text-xs font-bold gap-1.5 ${
-                    casinoSubTab === tab.id ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : ''
+                    casinoSubTab === tab.id ? 'bg-red-600 text-white' : 'border-slate-700 text-slate-300'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" /> {tab.label}
@@ -622,7 +763,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 bg-card border rounded-2xl p-6 flex flex-col items-center justify-center min-h-[320px] shadow-sm">
+            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[320px]">
               {casinoSubTab === 'slots' && (
                 <div className="text-center space-y-4">
                   <div className="flex justify-center gap-3 bg-slate-950 p-5 rounded-2xl border-4 border-amber-500/50 shadow-2xl">
@@ -637,7 +778,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground font-semibold">
+                  <p className="text-xs text-slate-400 font-semibold">
                     3 Matching symbols = 10x Win | 2 Matching symbols = 2.5x Win
                   </p>
                 </div>
@@ -645,7 +786,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
               {casinoSubTab === 'roulette' && (
                 <div className="text-center space-y-4">
-                  <div className={`w-36 h-36 md:w-44 md:h-44 rounded-full border-8 border-amber-500/80 bg-gradient-to-tr from-slate-900 via-slate-950 to-slate-900 mx-auto flex items-center justify-center shadow-2xl relative ${
+                  <div className={`w-36 h-36 md:w-44 md:h-44 rounded-full border-8 border-amber-500/80 bg-gradient-to-tr from-slate-900 to-slate-950 mx-auto flex items-center justify-center shadow-2xl relative ${
                     casinoSpinning ? 'animate-spin' : ''
                   }`}>
                     <div className="w-12 h-12 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center font-black text-xs text-emerald-300">
@@ -654,7 +795,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                   </div>
                   <div className="flex justify-center gap-2 text-xs font-bold">
                     <span className="px-3 py-1 bg-red-600 text-white rounded-md">Red (18)</span>
-                    <span className="px-3 py-1 bg-slate-900 text-white rounded-md">Black (18)</span>
+                    <span className="px-3 py-1 bg-slate-950 text-white rounded-md border border-slate-800">Black (18)</span>
                     <span className="px-3 py-1 bg-emerald-600 text-white rounded-md">Green (0)</span>
                   </div>
                 </div>
@@ -666,7 +807,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                     {casinoResult || 'Roll < Target'}
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-xs font-bold text-muted-foreground">
+                    <div className="flex justify-between text-xs font-bold text-slate-400">
                       <span>Target: Roll Under {diceTarget}</span>
                       <span>Win Chance: {diceTarget}%</span>
                     </div>
@@ -676,7 +817,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                       max={90}
                       value={diceTarget}
                       onChange={e => setDiceTarget(Number(e.target.value))}
-                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                      className="w-full h-2 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-red-500"
                     />
                   </div>
                 </div>
@@ -694,9 +835,9 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
               {casinoResult && (
                 <div className="mt-5 text-center">
-                  <div className="text-lg font-bold text-foreground">{casinoResult}</div>
+                  <div className="text-lg font-bold text-white">{casinoResult}</div>
                   {casinoPayout && (
-                    <div className="text-sm font-extrabold text-emerald-500 mt-1">
+                    <div className="text-sm font-extrabold text-emerald-400 mt-1">
                       🎉 Won KSh {formatCredits(casinoPayout)}!
                     </div>
                   )}
@@ -704,11 +845,11 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               )}
             </div>
 
-            <div className="bg-card border rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="border-b pb-3">
+                <div className="border-b border-slate-800 pb-3">
                   <h3 className="text-sm font-bold">Select Prediction</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Place your demo wager.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Place your wager.</p>
                 </div>
 
                 {casinoSubTab === 'roulette' && (
@@ -717,7 +858,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                       type="button"
                       variant={casinoChoice === 'Red' ? 'default' : 'outline'}
                       onClick={() => setCasinoChoice('Red')}
-                      className={casinoChoice === 'Red' ? 'bg-red-600 text-white font-bold' : ''}
+                      className={casinoChoice === 'Red' ? 'bg-red-600 text-white font-bold' : 'border-slate-800'}
                     >
                       Red (2x)
                     </Button>
@@ -725,7 +866,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                       type="button"
                       variant={casinoChoice === 'Black' ? 'default' : 'outline'}
                       onClick={() => setCasinoChoice('Black')}
-                      className={casinoChoice === 'Black' ? 'bg-slate-900 text-white font-bold' : ''}
+                      className={casinoChoice === 'Black' ? 'bg-slate-950 text-white font-bold' : 'border-slate-800'}
                     >
                       Black (2x)
                     </Button>
@@ -733,7 +874,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                       type="button"
                       variant={casinoChoice === 'Green 0' ? 'default' : 'outline'}
                       onClick={() => setCasinoChoice('Green 0')}
-                      className={casinoChoice === 'Green 0' ? 'bg-emerald-600 text-white font-bold' : ''}
+                      className={casinoChoice === 'Green 0' ? 'bg-emerald-600 text-white font-bold' : 'border-slate-800'}
                     >
                       0 (36x)
                     </Button>
@@ -760,26 +901,26 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">
                     Wager Amount (KSh Demo)
                   </label>
                   <input
                     type="number"
-                    value={stake}
-                    onChange={e => setStake(e.target.value)}
+                    value={stake1}
+                    onChange={e => setStake1(Number(e.target.value))}
                     min={10}
                     max={demoBalance}
-                    className="w-full bg-background border rounded-xl px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white outline-none focus:border-red-500"
                   />
                 </div>
               </div>
 
               <Button
                 onClick={playCasinoGame}
-                disabled={casinoSpinning || !Number(stake) || Number(stake) < 1 || Number(stake) > demoBalance}
+                disabled={casinoSpinning || !stake1 || stake1 < 1 || stake1 > demoBalance}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 text-sm mt-4 shadow-md"
               >
-                {casinoSpinning ? 'Spinning / Rolling...' : 'Play Round'}
+                {casinoSpinning ? 'Spinning...' : 'Play Round'}
               </Button>
             </div>
           </div>
@@ -788,26 +929,26 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
       {/* --- TAB 3: CRYPTO & ASSET TRADING --- */}
       {activeTab === 'trading' && (
-        <div className="space-y-4">
+        <div className="p-4 space-y-4">
           <div className="grid lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 bg-card border rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-1.5">
                   {(['BTC', 'ETH', 'SOL', 'AAPL'] as const).map(sym => (
                     <Button
                       key={sym}
-                      variant={tradeSymbol === sym ? 'secondary' : 'ghost'}
+                      variant={tradeSymbol === sym ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setTradeSymbol(sym)}
-                      className="text-xs font-bold"
+                      className={`text-xs font-bold ${tradeSymbol === sym ? 'bg-red-600 text-white' : 'border-slate-800 text-slate-400'}`}
                     >
                       {sym}/USD
                     </Button>
                   ))}
                 </div>
                 <div className="flex items-center gap-2 font-mono">
-                  <span className="text-xs text-muted-foreground">LIVE PRICE:</span>
-                  <strong className="text-base text-emerald-500">
+                  <span className="text-xs text-slate-400">LIVE PRICE:</span>
+                  <strong className="text-base text-emerald-400">
                     ${currentPrice.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </strong>
                 </div>
@@ -820,26 +961,26 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                     <YAxis domain={['dataMin - 10', 'dataMax + 10']} hide />
                     <Tooltip
                       formatter={(val: number) => `$${val.toFixed(2)}`}
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }}
+                      contentStyle={{ backgroundColor: '#020617', borderColor: '#1e293b', borderRadius: '8px', color: '#fff' }}
                     />
-                    <Area type="monotone" dataKey="price" stroke="#10b981" fill="#10b98120" strokeWidth={2.5} />
+                    <Area type="monotone" dataKey="price" stroke="#ef4444" fill="#ef444420" strokeWidth={2.5} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               {openTrade && (
-                <div className="bg-muted p-4 rounded-xl flex items-center justify-between border">
+                <div className="bg-slate-950 p-4 rounded-xl flex items-center justify-between border border-slate-800">
                   <div>
-                    <span className="text-xs text-muted-foreground uppercase font-bold">{openTrade.type} {openTrade.symbol}</span>
-                    <div className="text-sm font-bold mt-0.5">
+                    <span className="text-xs text-slate-400 uppercase font-bold">{openTrade.type} {openTrade.symbol}</span>
+                    <div className="text-sm font-bold mt-0.5 text-white">
                       Entry: ${openTrade.entry.toFixed(2)} | Stake: KSh {openTrade.stake}
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className={`text-base font-black font-mono block ${pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    <span className={`text-base font-black font-mono block ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {pnl >= 0 ? '+' : ''}KSh {pnl.toFixed(2)}
                     </span>
-                    <Button size="sm" onClick={closeTrade} className="mt-1 bg-slate-900 text-white hover:bg-slate-800 text-xs">
+                    <Button size="sm" onClick={closeTrade} className="mt-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold">
                       Close Position
                     </Button>
                   </div>
@@ -847,24 +988,24 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               )}
             </div>
 
-            <div className="bg-card border rounded-2xl p-5 flex flex-col justify-between shadow-sm">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
               <div className="space-y-4">
-                <div className="border-b pb-3">
-                  <h3 className="text-sm font-bold">Execute Trade</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Simulated market orders.</p>
+                <div className="border-b border-slate-800 pb-3">
+                  <h3 className="text-sm font-bold">Execute Order</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Spot market orders.</p>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1">
-                    Trade Margin (KSh Demo)
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">
+                    Trade Amount (KSh Demo)
                   </label>
                   <input
                     type="number"
-                    value={stake}
-                    onChange={e => setStake(e.target.value)}
+                    value={stake1}
+                    onChange={e => setStake1(Number(e.target.value))}
                     min={10}
                     max={demoBalance}
-                    className="w-full bg-background border rounded-xl px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white outline-none focus:border-red-500"
                   />
                 </div>
               </div>
@@ -872,14 +1013,14 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               <div className="grid grid-cols-2 gap-2 pt-4">
                 <Button
                   onClick={() => executeTrade('BUY')}
-                  disabled={!!openTrade || !Number(stake) || Number(stake) < 1 || Number(stake) > demoBalance}
+                  disabled={!!openTrade || !stake1 || stake1 < 1 || stake1 > demoBalance}
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 text-sm"
                 >
                   Buy / Long
                 </Button>
                 <Button
                   onClick={() => executeTrade('SELL')}
-                  disabled={!!openTrade || !Number(stake) || Number(stake) < 1 || Number(stake) > demoBalance}
+                  disabled={!!openTrade || !stake1 || stake1 < 1 || stake1 > demoBalance}
                   className="bg-red-600 hover:bg-red-500 text-white font-bold h-12 text-sm"
                 >
                   Sell / Short
@@ -889,22 +1030,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
           </div>
         </div>
       )}
-
-      {/* 3. FOOTER PROMO CALLOUT */}
-      <div className="bg-card border rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm text-center md:text-left">
-        <div>
-          <h4 className="text-sm font-extrabold text-foreground">Ready to switch from Demo to Real Funds?</h4>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Create a real account to deposit M-Pesa or Card funds and start earning real cash rewards.
-          </p>
-        </div>
-        <Button
-          onClick={() => onGoToAuth('signup')}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 shrink-0 shadow-md"
-        >
-          Create Real Account & Deposit <ArrowUpRight className="w-4 h-4 ml-1" />
-        </Button>
-      </div>
     </div>
   );
 }
