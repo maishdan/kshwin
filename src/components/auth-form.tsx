@@ -65,19 +65,19 @@ export function AuthForm() {
  const change=(next:typeof mode)=>{setMode(next);setError('');setNotice('');};
 
  return (
-   <main className="auth-page">
+   <main className={`auth-page ${mode === 'demo' ? 'demo-mode' : ''}`}>
      <section className="auth-left">
        <Brand/>
-       <div className={`auth-form ${mode === 'demo' ? 'max-w-4xl w-full' : ''}`}>
+       <div className={`auth-form ${mode === 'demo' ? 'demo-form-wrap' : ''}`}>
          <div className="eyebrow">KSH WIN · HYBRID PLAY & TRADING</div>
-         <h1 className="text-3xl font-extrabold tracking-tight">
+         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
            {mode==='signup'?'Make it your world.':mode==='forgot'?'A fresh start.':mode==='demo'?'Try Demo Account.':'Welcome back.'}
          </h1>
          <p className="intro">
            {mode==='demo'?'Practice games & trading with $10,000 demo credits. Sign in to deposit real money!':mode==='forgot'?'Let’s get you back into your account.':'Sign in or play in demo mode before depositing real funds.'}
          </p>
 
-         <div className="segment mb-6">
+         <div className="segment mb-6 flex flex-wrap gap-1">
            <Button variant="ghost" className={mode==='login'?'selected':''} onClick={()=>change('login')}>Sign in</Button>
            <Button variant="ghost" className={mode==='signup'?'selected':''} onClick={()=>change('signup')}>Create account</Button>
            <Button variant="ghost" className={mode==='demo'?'selected text-emerald-600 dark:text-emerald-400 font-bold':''} onClick={()=>change('demo')}>🎮 Try Demo</Button>

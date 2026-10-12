@@ -3,7 +3,7 @@ import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'rec
 import {
   Plane, Dices, TrendingUp, Wallet, ArrowRight, Sparkles, RefreshCw,
   ArrowUpRight, ShieldCheck, Flame, CircleDot, Coins, Cherry, ShieldAlert,
-  Play, StopCircle, Award, CheckCircle2, AlertCircle
+  Play, StopCircle, Award, CheckCircle2, AlertCircle, Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCredits } from '@/lib/site';
@@ -13,8 +13,10 @@ interface DemoPlaygroundProps {
   onGoToAuth: (mode?: 'login' | 'signup') => void;
 }
 
+type FlightState = 'WAITING' | 'FLYING' | 'CRASHED';
+
 export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
-  // Demo Wallet State (stored in localStorage)
+  // Demo Wallet State
   const [demoBalance, setDemoBalance] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('kshwin_demo_balance');
@@ -33,36 +35,68 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   // Main Tab Navigation
   const [activeTab, setActiveTab] = useState<'aviator' | 'casino' | 'trading'>('aviator');
 
-  // --- AVIATOR GAME ENGINE STATE ---
+  // --- AUTOMATIC CONTINUOUS AVIATOR GAME ENGINE ---
   const [stake, setStake] = useState<string>('100');
   const [autoCashout, setAutoCashout] = useState<string>('');
-  const [flying, setFlying] = useState<boolean>(false);
+  const [flightState, setFlightState] = useState<FlightState>('WAITING');
+  const [countdown, setCountdown] = useState<number>(5);
   const [multiplier, setMultiplier] = useState<number>(1.00);
-  const [crashed, setCrashed] = useState<boolean>(false);
+  const [hasBet, setHasBet] = useState<boolean>(false);
   const [cashedOut, setCashedOut] = useState<boolean>(false);
   const [lastWin, setLastWin] = useState<number | null>(null);
-  const [multiplierHistory, setMultiplierHistory] = useState<number[]>([1.45, 2.18, 1.05, 5.40, 1.82, 12.30, 2.04]);
+  const [multiplierHistory, setMultiplierHistory] = useState<number[]>([2.18, 1.45, 5.40, 1.05, 12.30, 1.82, 3.10]);
 
-  const flightTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const crashPoint = useRef<number>(2.00);
   const flightStartTime = useRef<number>(0);
+  const flightTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Flight trajectory coordinates (0% to 100%)
+  // Plane animation coordinates
   const [planeX, setPlaneX] = useState<number>(5);
   const [planeY, setPlaneY] = useState<number>(85);
 
-  const startDemoFlight = () => {
-    const stakeNum = Number(stake);
-    if (!stakeNum || stakeNum < 1 || stakeNum > demoBalance) return;
+  // Continuous Auto-Loop Effect for Aviator
+  useEffect(() => {
+    if (activeTab !== 'aviator') {
+      if (flightTimer.current) clearInterval(flightTimer.current);
+      if (countdownTimer.current) clearInterval(countdownTimer.current);
+      return;
+    }
 
-    setDemoBalance(prev => prev - stakeNum);
-    setFlying(true);
-    setCrashed(false);
-    setCashedOut(false);
-    setLastWin(null);
+    // Start waiting phase loop
+    startWaitingPhase();
+
+    return () => {
+      if (flightTimer.current) clearInterval(flightTimer.current);
+      if (countdownTimer.current) clearInterval(countdownTimer.current);
+    };
+  }, [activeTab]);
+
+  const startWaitingPhase = () => {
+    if (flightTimer.current) clearInterval(flightTimer.current);
+    if (countdownTimer.current) clearInterval(countdownTimer.current);
+
+    setFlightState('WAITING');
+    setCountdown(5);
     setMultiplier(1.00);
     setPlaneX(5);
     setPlaneY(85);
+    setCashedOut(false);
+    setLastWin(null);
+
+    let cd = 5;
+    countdownTimer.current = setInterval(() => {
+      cd--;
+      setCountdown(cd);
+      if (cd <= 0) {
+        if (countdownTimer.current) clearInterval(countdownTimer.current);
+        startFlightPhase();
+      }
+    }, 1000);
+  };
+
+  const startFlightPhase = () => {
+    setFlightState('FLYING');
 
     // Generate crash point (Weighted algorithm)
     const rand = Math.random();
@@ -72,46 +106,60 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
     flightTimer.current = setInterval(() => {
       const elapsed = (Date.now() - flightStartTime.current) / 1000;
-      // Multiplier exponential curve
       const currentMult = Number((Math.exp(elapsed * 0.14)).toFixed(2));
 
-      // Calculate plane position along parabola
+      // Calculate plane position along curved trajectory
       const progress = Math.min(100, (elapsed / 8) * 100);
       setPlaneX(Math.min(85, 5 + progress * 0.8));
       setPlaneY(Math.max(15, 85 - Math.pow(progress / 100, 0.7) * 70));
 
-      // Check auto cashout
+      // Check auto cashout if player has an active bet
       const autoNum = Number(autoCashout);
-      if (autoNum > 1 && currentMult >= autoNum && !cashedOut) {
-        cashOutDemo(currentMult);
-        return;
+      if (hasBet && !cashedOut && autoNum > 1 && currentMult >= autoNum) {
+        handleCashOut(currentMult);
       }
 
       if (currentMult >= crashPoint.current) {
         if (flightTimer.current) clearInterval(flightTimer.current);
-        setFlying(false);
-        setCrashed(true);
-        setMultiplier(crashPoint.current);
-        setMultiplierHistory(prev => [crashPoint.current, ...prev.slice(0, 9)]);
+        handleCrash(crashPoint.current);
       } else {
         setMultiplier(currentMult);
       }
     }, 80);
   };
 
-  const cashOutDemo = (forcedMult?: number) => {
-    if (!flying || cashedOut) return;
-    if (flightTimer.current) clearInterval(flightTimer.current);
+  const handleCrash = (finalCrash: number) => {
+    setFlightState('CRASHED');
+    setMultiplier(finalCrash);
+    setHasBet(false);
+    setMultiplierHistory(prev => [finalCrash, ...prev.slice(0, 8)]);
+
+    // Wait 3.5 seconds after crash, then restart next flight automatically!
+    setTimeout(() => {
+      startWaitingPhase();
+    }, 3500);
+  };
+
+  const placeDemoBet = () => {
+    const stakeNum = Number(stake);
+    if (!stakeNum || stakeNum < 1 || stakeNum > demoBalance || hasBet) return;
+
+    setDemoBalance(prev => prev - stakeNum);
+    setHasBet(true);
+    setCashedOut(false);
+  };
+
+  const handleCashOut = (forcedMult?: number) => {
+    if (!hasBet || cashedOut || flightState !== 'FLYING') return;
 
     const finalMult = forcedMult || multiplier;
     const stakeNum = Number(stake);
     const winAmount = Math.round(stakeNum * finalMult);
 
-    setFlying(false);
     setCashedOut(true);
+    setHasBet(false);
     setLastWin(winAmount);
     setDemoBalance(prev => prev + winAmount);
-    setMultiplierHistory(prev => [finalMult, ...prev.slice(0, 9)]);
   };
 
   // --- CASINO SUITE STATE ---
@@ -203,7 +251,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
         }
       }, 600);
     } else {
-      // Coin Flip
       setTimeout(() => {
         const flip = Math.random() < 0.5 ? 'Heads' : 'Tails';
         setCasinoSpinning(false);
@@ -282,9 +329,9 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
   return (
     <div className="demo-playground w-full space-y-6">
       {/* 1. TOP REAL CASH DEPOSIT PROMO BANNER */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-4 md:p-5 shadow-xl text-emerald-100 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5 w-full md:w-auto">
-          <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 shrink-0">
+      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-4 md:p-5 shadow-xl text-emerald-100 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
           <div>
@@ -292,23 +339,23 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               <span className="text-xs font-black uppercase tracking-widest text-emerald-400">DEMO PLAYGROUND</span>
               <span className="text-[10px] bg-emerald-800/80 text-emerald-200 border border-emerald-600 px-2 py-0.5 rounded-full font-mono font-bold">Risk-Free</span>
             </div>
-            <p className="text-xs md:text-sm text-emerald-200/90 font-medium mt-0.5">
-              Testing KSH WIN with $10,000 virtual credits. Ready to win & withdraw real cash?
+            <p className="text-xs text-emerald-200/90 font-medium mt-0.5">
+              Testing KSH WIN with $10,000 virtual credits. Ready to win real cash?
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0 justify-end">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Button
             onClick={() => onGoToAuth('login')}
             variant="outline"
-            className="border-emerald-500/50 text-emerald-200 hover:bg-emerald-900/60 text-xs font-semibold"
+            className="border-emerald-500/50 text-emerald-200 hover:bg-emerald-900/60 text-xs font-semibold whitespace-nowrap"
           >
             Sign In
           </Button>
           <Button
             onClick={() => onGoToAuth('signup')}
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-4 py-2 shadow-lg shadow-emerald-950/80 transition-all hover:scale-105"
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-4 py-2 shadow-lg shadow-emerald-950/80 whitespace-nowrap"
           >
             Deposit Real Cash <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
@@ -317,7 +364,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
       {/* 2. DEMO WALLET & TAB NAVIGATION BAR */}
       <div className="bg-card border rounded-2xl p-3.5 md:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-2.5 bg-secondary/80 px-3.5 py-2 rounded-xl border font-mono">
             <Wallet className="w-4 h-4 text-emerald-500" />
             <span className="text-xs font-bold text-muted-foreground">Demo Balance:</span>
@@ -330,34 +377,34 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
             size="sm"
             onClick={resetDemoBalance}
             title="Reset Demo Balance to KSh 10,000"
-            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-9"
+            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-9 whitespace-nowrap"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Reset $10k
           </Button>
         </div>
 
-        {/* Main Tabs */}
-        <div className="grid grid-cols-3 gap-1 bg-muted p-1.5 rounded-xl w-full sm:w-auto">
+        {/* Main Tabs - Spacious, distinctly separated buttons */}
+        <div className="flex flex-wrap gap-2 bg-muted p-1.5 rounded-xl">
           <button
             onClick={() => setActiveTab('aviator')}
-            className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'aviator' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'aviator' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Plane className="w-4 h-4" /> Aviator
           </button>
           <button
             onClick={() => setActiveTab('casino')}
-            className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'casino' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'casino' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Dices className="w-4 h-4" /> Casino
           </button>
           <button
             onClick={() => setActiveTab('trading')}
-            className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'trading' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'trading' ? 'bg-card text-emerald-600 dark:text-emerald-400 shadow-sm border' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <TrendingUp className="w-4 h-4" /> Trading
@@ -365,7 +412,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
         </div>
       </div>
 
-      {/* --- TAB 1: REAL AVIATOR GAME --- */}
+      {/* --- TAB 1: AUTOMATIC CONTINUOUS AVIATOR GAME --- */}
       {activeTab === 'aviator' && (
         <div className="space-y-4">
           {/* History Pills */}
@@ -388,16 +435,18 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
           <div className="grid lg:grid-cols-3 gap-5">
             {/* Real Flight Stage */}
             <div className="lg:col-span-2 bg-slate-950 border border-slate-800 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between min-h-[340px] md:min-h-[400px] shadow-2xl">
-              {/* Top Bar inside flight stage */}
-              <div className="flex justify-between items-center z-10">
+              {/* Flight Stage Header with clear spacing */}
+              <div className="flex flex-wrap justify-between items-center z-10 gap-2 border-b border-slate-900/80 pb-2">
                 <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 bg-emerald-950/80 px-2.5 py-1 rounded-md border border-emerald-800/60">
-                  <Flame className="w-3.5 h-3.5 text-emerald-400" /> LIVE AVIATOR FLIGHT
+                  <Flame className="w-3.5 h-3.5 text-emerald-400" /> AUTO AVIATOR FLIGHT
                 </span>
-                <span className="text-xs font-mono text-slate-400">RTP: 97.0%</span>
+                <span className="text-xs font-mono text-slate-400 bg-slate-900 px-2.5 py-1 rounded-md border border-slate-800">
+                  {flightState === 'WAITING' ? `NEXT ROUND IN ${countdown}s` : flightState === 'FLYING' ? 'SOARING IN AIR' : 'FLEW AWAY'}
+                </span>
               </div>
 
               {/* Curved Flight Path SVG */}
-              <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 500 300" preserveAspectRatio="none">
+              <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30" viewBox="0 0 500 300" preserveAspectRatio="none">
                 <path d="M 10 280 Q 250 270 480 30" stroke="#10b981" strokeWidth="4" fill="none" strokeDasharray="6 6" />
               </svg>
 
@@ -415,11 +464,11 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                     src={world}
                     alt="Real Aviator Aircraft"
                     className={`w-16 h-16 md:w-20 md:h-20 object-cover rounded-full border-2 border-emerald-400 shadow-2xl ${
-                      flying ? 'animate-pulse scale-110 shadow-emerald-500/50' : ''
+                      flightState === 'FLYING' ? 'animate-pulse scale-110 shadow-emerald-500/50' : ''
                     }`}
                   />
-                  {flying && (
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded shadow">
+                  {flightState === 'FLYING' && (
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded shadow whitespace-nowrap">
                       SOARING
                     </div>
                   )}
@@ -428,19 +477,30 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
 
               {/* Multiplier Display Center */}
               <div className="my-auto text-center z-10">
-                <div className={`text-6xl md:text-7xl font-black font-mono tracking-tight ${
-                  crashed ? 'text-red-500' : cashedOut ? 'text-emerald-400' : 'text-slate-100'
-                }`}>
-                  {multiplier.toFixed(2)}<span className="text-3xl md:text-4xl font-bold">x</span>
-                </div>
-                <p className="text-xs md:text-sm font-semibold text-slate-400 mt-2">
-                  {flying ? '🚀 Flight soaring! Tap Cash Out before crash.' : crashed ? '💥 Plane Flew Away! Next round ready.' : cashedOut ? `🎉 Cashed out at ${multiplier.toFixed(2)}x! Won KSh ${formatCredits(lastWin || 0)}` : 'Ready for Take Off'}
-                </p>
+                {flightState === 'WAITING' ? (
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold px-4 py-2 rounded-xl text-lg font-mono">
+                      <Timer className="w-5 h-5 animate-spin" /> NEXT FLIGHT IN {countdown}s
+                    </div>
+                    <p className="text-xs text-slate-400">Place your bet for the upcoming flight!</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className={`text-6xl md:text-7xl font-black font-mono tracking-tight ${
+                      flightState === 'CRASHED' ? 'text-red-500' : cashedOut ? 'text-emerald-400' : 'text-slate-100'
+                    }`}>
+                      {multiplier.toFixed(2)}<span className="text-3xl md:text-4xl font-bold">x</span>
+                    </div>
+                    <p className="text-xs md:text-sm font-semibold text-slate-400 mt-2">
+                      {flightState === 'FLYING' ? '🚀 Flight in air! Tap Cash Out before plane flees.' : flightState === 'CRASHED' ? `💥 Plane Flew Away at ${multiplier.toFixed(2)}x! Next flight starting...` : `🎉 Cashed out at ${multiplier.toFixed(2)}x! Won KSh ${formatCredits(lastWin || 0)}`}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Flight Stage Footer */}
               <div className="flex justify-between items-center text-xs text-slate-500 z-10 border-t border-slate-900 pt-3">
-                <span>VIRTUAL AVIATOR DEMO</span>
+                <span>CONTINUOUS AUTOMATIC LOOPS</span>
                 <span>PROBABLY FAIR ALGORITHM</span>
               </div>
             </div>
@@ -450,9 +510,9 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               <div className="space-y-4">
                 <div className="border-b pb-3">
                   <h3 className="text-sm font-bold flex items-center gap-2">
-                    <Plane className="w-4 h-4 text-emerald-500" /> Place Demo Stake
+                    <Plane className="w-4 h-4 text-emerald-500" /> Place Demo Bet
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Win up to 100x your stake on long flights.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Bet on upcoming flight. Cash out anytime!</p>
                 </div>
 
                 <div>
@@ -462,20 +522,21 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                   <input
                     type="number"
                     value={stake}
-                    disabled={flying}
+                    disabled={hasBet}
                     onChange={e => setStake(e.target.value)}
                     min={10}
                     max={demoBalance}
                     className="w-full bg-background border rounded-xl px-3.5 py-2.5 text-sm font-bold outline-none focus:border-emerald-500"
                   />
-                  <div className="grid grid-cols-4 gap-1.5 mt-2">
+                  {/* Distinct Grid with spacing so buttons never overlap */}
+                  <div className="grid grid-cols-4 gap-2 mt-2">
                     {[50, 100, 250, 500].map(amt => (
                       <button
                         key={amt}
                         type="button"
-                        disabled={flying}
+                        disabled={hasBet}
                         onClick={() => setStake(String(amt))}
-                        className="py-1.5 text-xs font-bold bg-muted hover:bg-secondary rounded-lg transition-colors"
+                        className="py-1.5 text-xs font-bold bg-muted hover:bg-secondary rounded-lg transition-colors border"
                       >
                         +{amt}
                       </button>
@@ -492,7 +553,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                     placeholder="e.g. 2.00"
                     step="0.1"
                     value={autoCashout}
-                    disabled={flying}
+                    disabled={hasBet}
                     onChange={e => setAutoCashout(e.target.value)}
                     className="w-full bg-background border rounded-xl px-3.5 py-2 text-xs font-semibold outline-none focus:border-emerald-500"
                   />
@@ -500,20 +561,27 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               </div>
 
               <div className="pt-5 border-t mt-4">
-                {!flying ? (
+                {flightState === 'WAITING' ? (
                   <Button
-                    onClick={startDemoFlight}
-                    disabled={!Number(stake) || Number(stake) < 1 || Number(stake) > demoBalance}
+                    onClick={placeDemoBet}
+                    disabled={hasBet || !Number(stake) || Number(stake) < 1 || Number(stake) > demoBalance}
                     className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-12 text-sm shadow-md"
                   >
-                    Take Off (Bet KSh {stake})
+                    {hasBet ? 'Bet Placed! Waiting for Launch...' : `Bet KSh ${stake} for Next Flight`}
                   </Button>
-                ) : (
+                ) : flightState === 'FLYING' && hasBet && !cashedOut ? (
                   <Button
-                    onClick={() => cashOutDemo()}
+                    onClick={() => handleCashOut()}
                     className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black h-12 text-sm shadow-xl animate-pulse"
                   >
                     CASH OUT KSh {formatCredits(Math.round(Number(stake) * multiplier))} ({multiplier.toFixed(2)}x)
+                  </Button>
+                ) : (
+                  <Button
+                    disabled
+                    className="w-full bg-muted text-muted-foreground font-bold h-12 text-sm"
+                  >
+                    {cashedOut ? `Cashed Out KSh ${formatCredits(lastWin || 0)}!` : flightState === 'CRASHED' ? 'Flew Away! Starting next round...' : 'Flight in Progress'}
                   </Button>
                 )}
               </div>
@@ -525,7 +593,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
       {/* --- TAB 2: CASINO CLASSICS --- */}
       {activeTab === 'casino' && (
         <div className="space-y-4">
-          {/* Casino Game Subtabs */}
           <div className="flex flex-wrap gap-2 border-b pb-3">
             {[
               { id: 'roulette', label: 'Roulette Wheel', icon: CircleDot },
@@ -555,9 +622,7 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
           </div>
 
           <div className="grid lg:grid-cols-3 gap-5">
-            {/* Casino Interactive Stage */}
             <div className="lg:col-span-2 bg-card border rounded-2xl p-6 flex flex-col items-center justify-center min-h-[320px] shadow-sm">
-              {/* Slots Reel Visual */}
               {casinoSubTab === 'slots' && (
                 <div className="text-center space-y-4">
                   <div className="flex justify-center gap-3 bg-slate-950 p-5 rounded-2xl border-4 border-amber-500/50 shadow-2xl">
@@ -578,7 +643,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 </div>
               )}
 
-              {/* Roulette Visual */}
               {casinoSubTab === 'roulette' && (
                 <div className="text-center space-y-4">
                   <div className={`w-36 h-36 md:w-44 md:h-44 rounded-full border-8 border-amber-500/80 bg-gradient-to-tr from-slate-900 via-slate-950 to-slate-900 mx-auto flex items-center justify-center shadow-2xl relative ${
@@ -596,7 +660,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 </div>
               )}
 
-              {/* Dice Visual */}
               {casinoSubTab === 'dice' && (
                 <div className="w-full max-w-md text-center space-y-5">
                   <div className="text-5xl font-black font-mono text-emerald-500 my-2">
@@ -619,7 +682,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 </div>
               )}
 
-              {/* Coin Visual */}
               {casinoSubTab === 'coin' && (
                 <div className="text-center space-y-4">
                   <div className={`w-32 h-32 rounded-full bg-amber-400 border-4 border-amber-600 flex items-center justify-center text-slate-950 font-black text-2xl shadow-2xl mx-auto ${
@@ -630,7 +692,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 </div>
               )}
 
-              {/* Outcome Feedback */}
               {casinoResult && (
                 <div className="mt-5 text-center">
                   <div className="text-lg font-bold text-foreground">{casinoResult}</div>
@@ -643,7 +704,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               )}
             </div>
 
-            {/* Betting Panel */}
             <div className="bg-card border rounded-2xl p-5 flex flex-col justify-between shadow-sm">
               <div className="space-y-4">
                 <div className="border-b pb-3">
@@ -730,7 +790,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
       {activeTab === 'trading' && (
         <div className="space-y-4">
           <div className="grid lg:grid-cols-3 gap-5">
-            {/* Real Interactive Price Chart */}
             <div className="lg:col-span-2 bg-card border rounded-2xl p-5 shadow-sm space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
                 <div className="flex items-center gap-1.5">
@@ -754,7 +813,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 </div>
               </div>
 
-              {/* Recharts AreaChart */}
               <div className="h-64 w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={tradeChartData}>
@@ -769,7 +827,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
                 </ResponsiveContainer>
               </div>
 
-              {/* Active Position Info */}
               {openTrade && (
                 <div className="bg-muted p-4 rounded-xl flex items-center justify-between border">
                   <div>
@@ -790,7 +847,6 @@ export function DemoPlayground({ onGoToAuth }: DemoPlaygroundProps) {
               )}
             </div>
 
-            {/* Trading Order Panel */}
             <div className="bg-card border rounded-2xl p-5 flex flex-col justify-between shadow-sm">
               <div className="space-y-4">
                 <div className="border-b pb-3">
