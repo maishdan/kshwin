@@ -1,14 +1,18 @@
-# Welcome to your Lovable project
+# Kshwin
+
+now i want us to create a website for trading  with the aviator  page betting gambling  all this   with also trading a hybrid gambling site with login page auth as the homw page then the betting and gambling games so many games after login page  please make it look so clen a very clean design kindly
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://kshwin.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/c4737f19-4671-46f2-885a-5cfa9bf23567).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +24,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
