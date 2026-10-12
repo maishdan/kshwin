@@ -14,13 +14,166 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      crash_rounds: {
+        Row: {
+          crash_at: number
+          game: string
+          settled: boolean
+          stake: number
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          crash_at: number
+          game: string
+          settled?: boolean
+          stake: number
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          crash_at?: number
+          game?: string
+          settled?: boolean
+          stake?: number
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crash_rounds_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      play_history: {
+        Row: {
+          created_at: string
+          game: string
+          id: string
+          payout: number
+          result: string
+          stake: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          game: string
+          id?: string
+          payout: number
+          result: string
+          stake: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          game?: string
+          id?: string
+          payout?: number
+          result?: string
+          stake?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "play_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      positions: {
+        Row: {
+          created_at: string
+          entry: number
+          id: string
+          stake: number
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry: number
+          id?: string
+          stake: number
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          entry?: number
+          id?: string
+          stake?: number
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          display_name: string
+          id: string
+        }
+        Insert: {
+          display_name?: string
+          id: string
+        }
+        Update: {
+          display_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          balance: number
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      play_action: {
+        Args: {
+          p_action?: string
+          p_choice?: string
+          p_game: string
+          p_stake?: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
